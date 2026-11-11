@@ -30,20 +30,23 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 
 Record your plan here before editing code.
 
-- Presentation tier decision:
-- Logic tier decision:
-- Data tier decision:
-- Activity tracking approach:
-- Team management approach:
-- Leaderboard approach:
-- Workout suggestions approach:
+- Presentation tier decision: Keep rendering and user interaction in React route components; use the shared API client for relative `/api` requests. Each capability view should expose accessible loading, empty, and error states.
+- Logic tier decision: Keep request validation and business rules in Express routes/services. Validate ObjectId syntax and referenced records before writes, and return deliberate 4xx responses for invalid or unknown input.
+- Data tier decision: Define required fields, references, defaults, and validation in the Mongoose models. Seed representative users, teams, activities, and workouts idempotently without deleting or overwriting unrelated records.
+- Activity tracking approach: Validate `userId` and `teamId`, create an activity linked to existing records, derive points from the submitted activity, and set `occurredAt` when creating the record. List persisted activities from the API.
+- Team management approach: Require a name, retain the submitted name and mascot, and persist the members array with an empty-array default.
+- Leaderboard approach: Aggregate persisted activity points by team, sort totals descending, and return the team name, total, and 1-based rank.
+- Workout suggestions approach: Find the requested user by email, use their fitness goal and recent activity to prioritize matching workouts, and explain the first recommendation with a reason. Return 4xx when no user matches.
+- Smallest safe implementation order: (1) implement and test the Mongoose schemas and idempotent seed data; (2) implement API behavior, starting with activities and teams, then leaderboard and workout suggestions; (3) implement the shared frontend API integration and capability views/states; (4) run both builds. Keep each step focused and verify its tier before moving on.
 
 ## Test plan
 
-Record the commands you run and what each failure means.
+Run focused contract tests in dependency order, then run both builds to catch type and bundling errors. The test suites use an in-memory MongoDB for data and API coverage; MongoDB binary download/startup failures are environmental and do not establish whether those assertions pass.
 
-- Data-tier command: `npm run test:data --prefix octofit-tracker/backend`
-- API command: `npm run test:api --prefix octofit-tracker/backend`
-- Frontend command: `npm test --prefix octofit-tracker/frontend`
-- Backend build command: `npm run build --prefix octofit-tracker/backend`
-- Frontend build command: `npm run build --prefix octofit-tracker/frontend`
+- Data-tier command: `npm run test:data --prefix octofit-tracker/backend` — verifies required model fields/defaults and repeatable seeding that preserves unrelated records. Schema assertion failures indicate model-contract gaps; seed assertions indicate missing, mislinked, destructive, or non-idempotent fixtures.
+- API command: `npm run test:api --prefix octofit-tracker/backend` — verifies activity/team creation and listing, input/reference validation, leaderboard ordering/ranks, and user-specific workout recommendations. Assertion failures indicate route/service contract gaps; a MongoDB memory-server startup failure means the suite was blocked before API behavior could be tested.
+- Frontend command: `npm test --prefix octofit-tracker/frontend` — verifies capability data rendering, user-specific suggestion requests, and accessible loading, empty, and error states. Failures identify missing or incorrect frontend integration or presentation behavior.
+- Backend build command: `npm run build --prefix octofit-tracker/backend` — verifies TypeScript compilation; failures indicate backend type errors.
+- Frontend build command: `npm run build --prefix octofit-tracker/frontend` — verifies TypeScript compilation and Vite bundling; failures indicate frontend type or build errors.
+
+Current baseline: model validation assertions and all frontend contract tests fail against the starter implementation. The seed and API suites could not be fully evaluated because `mongodb-memory-server` could not download its MongoDB binary in this environment.
